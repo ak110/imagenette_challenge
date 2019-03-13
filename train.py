@@ -59,7 +59,7 @@ def _main():
     input_shape = (331, 331, 3)
 
     epochs = 5 if args.check else 1800
-    batch_size = 16
+    batch_size = 8 if args.model == 'nasnet' else 16  # NASNetLargeはメモリがやや厳しい。。
     base_lr = 1e-3 * batch_size * hvd.size()
 
     model = {
@@ -90,8 +90,8 @@ def _main():
             int(np.ceil(len(X_val) / batch_size)),
             verbose=1 if hvd.rank() == 0 else 0)
         logger.info(f'Arguments: --data={args.data} --model={args.model}')
-        logger.info(f'Validation Accuracy:      {sklearn.metrics.accuracy_score(y_val, pred_val.argmax(axis=-1)):.4f}')
-        logger.info(f'Validation Cross Entropy: {sklearn.metrics.log_loss(y_val, pred_val):.4f}')
+        logger.info(f'Validation Accuracy:      {sklearn.metrics.accuracy_score(y_val, pred_val.argmax(axis=-1)):.3f}')
+        logger.info(f'Validation Cross Entropy: {sklearn.metrics.log_loss(y_val, pred_val):.3f}')
         # 後で何かしたくなった時のために一応保存
         model.save(args.results_dir / f'{args.data}.{args.model}.h5', include_optimizer=False)
 
@@ -222,14 +222,15 @@ def _generate(X, y, batch_size, num_classes, shuffle=False, data_augmentation=Fa
     """generator。"""
     if data_augmentation:
         aug1 = A.Compose([
-            A.Resize(412, 412, p=1),
+            A.Resize(331, 331, p=1),
+            A.PadIfNeeded(412, 412),
             _create_autoaugment(),
-            A.RandomCrop(331, 331),
+            A.RandomSizedCrop((265, 412), 331, 331, p=1),
             A.HorizontalFlip(),
         ])
         aug2 = A.Compose([A.Normalize(mean=0.5, std=0.5), A.Cutout(num_holes=1, max_h_size=16, max_w_size=16)])
     else:
-        aug1 = A.Compose([])
+        aug1 = A.Compose([A.Resize(331, 331, p=1)])
         aug2 = A.Compose([A.Normalize(mean=0.5, std=0.5)])
 
     with joblib.Parallel(backend='threading', n_jobs=batch_size) as parallel:

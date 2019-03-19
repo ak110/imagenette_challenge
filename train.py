@@ -35,7 +35,7 @@ def _main():
     parser.add_argument('--data', default='imagenette', choices=('imagenette', 'imagewoof'))
     parser.add_argument('--swap-train-val', action='store_true', default=True)
     parser.add_argument('--no-swap-train-val', dest='swap_train_val', action='store_false')
-    parser.add_argument('--model', default='resnet', choices=('resnet', 'nasnet'))
+    parser.add_argument('--model', default='resnet', choices=('resnet', 'inception_resnet_v2', 'nasnet'))
     parser.add_argument('--check', action='store_true', help='3epochだけお試し実行(動作確認用)')
     parser.add_argument('--results-dir', default=pathlib.Path('results'), type=pathlib.Path)
     args = parser.parse_args()
@@ -64,6 +64,7 @@ def _main():
 
     model = {
         'resnet': _create_network,
+        'inception_resnet_v2': _create_network_inception_resnet_v2,
         'nasnet': _create_network_nasnet,
     }[args.model](input_shape, num_classes)
     optimizer = keras.optimizers.SGD(lr=base_lr, momentum=0.9, nesterov=True)
@@ -163,6 +164,11 @@ def _create_network(input_shape, num_classes):
         return _layers
 
     return _create()
+
+
+def _create_network_inception_resnet_v2(input_shape, num_classes):
+    """ネットワークを作成して返す。InceptionResNetV2。"""
+    return keras.applications.InceptionResNetV2(input_shape=input_shape, classes=num_classes, weights=None)
 
 
 def _create_network_nasnet(input_shape, num_classes):
